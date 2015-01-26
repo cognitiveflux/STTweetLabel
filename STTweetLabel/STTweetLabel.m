@@ -9,8 +9,6 @@
 #import "STTweetLabel.h"
 #import "STTweetTextStorage.h"
 
-#define STURLRegex @"(?i)\\b((?:[a-z][\\w-]+:(?:/{1,3}|[a-z0-9%])|www\\d{0,3}[.]|[a-z0-9.\\-]+[.][a-z]{2,4}/)(?:[^\\s()<>]+|\\(([^\\s()<>]+|(\\([^\\s()<>]+\\)))*\\))+(?:\\(([^\\s()<>]+|(\\([^\\s()<>]+\\)))*\\)|[^\\s`!()\\[\\]{};:'\".,<>?«»“”‘’]))"
-
 @interface STTweetLabel () <UITextViewDelegate>
 
 @property (strong) STTweetTextStorage *textStorage;
@@ -174,21 +172,34 @@
 - (void)determineLinks {
     NSMutableString *tmpText = [[NSMutableString alloc] initWithString:_cleanText];
 
-    NSError *regexError = nil;
-    NSRegularExpression *regex = [NSRegularExpression regularExpressionWithPattern:STURLRegex options:0 error:&regexError];
+    // Use a data detector to find urls
+    NSError *detectorError = nil;
+    NSDataDetector *detector = [[NSDataDetector alloc] initWithTypes:NSTextCheckingTypeLink error:&detectorError];
 
-    [regex enumerateMatchesInString:tmpText options:0 range:NSMakeRange(0, tmpText.length) usingBlock:^(NSTextCheckingResult *result, NSMatchingFlags flags, BOOL *stop) {
-        NSString *protocol = @"http";
-        NSString *link = [tmpText substringWithRange:result.range];
-        NSRange protocolRange = [link rangeOfString:@"://"];
-        if (protocolRange.location != NSNotFound) {
-            protocol = [link substringToIndex:protocolRange.location];
-        }
+    NSArray *results = [detector matchesInString:tmpText
+                                         options:0
+                                           range:NSMakeRange(0, tmpText.length)];
 
-        if ([_validProtocols containsObject:protocol.lowercaseString]) {
-            [_rangesOfHotWords addObject:@{@"hotWord": @(STTweetLink), @"protocol": protocol, @"range": [NSValue valueWithRange:result.range]}];
+    // Add range attribute for every URL matching validProtocols
+    for (NSTextCheckingResult *result in results)
+    {
+        if ([_validProtocols containsObject:result.URL.scheme])
+		{
+
+            // NSDataDetector Patch
+            // NSDataDetector will only parse a URI encapsulated in () if no parentheses are also used in the URI
+            NSRange matchRange = [result range];
+
+            if ((matchRange.location > 0) &&
+                ([tmpText characterAtIndex:(matchRange.location - 1)] == '(') &&
+                ([tmpText characterAtIndex:(NSMaxRange(matchRange) - 1)] == ')'))
+            {
+                matchRange.length -= 1;
+            }
+           
+            [_rangesOfHotWords addObject:@{@"hotWord": @(STTweetLink), @"protocol": result.URL.scheme, @"range": [NSValue valueWithRange:matchRange]}];
         }
-    }];
+    }
 }
 
 - (void)updateText

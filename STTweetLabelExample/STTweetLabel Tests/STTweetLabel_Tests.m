@@ -323,6 +323,16 @@
     [self initiateTestFromSample:string results:results];
 }
 
+- (void)test_setTextAndGetHotWords_setTextWithOneEncapsulateLinkWithNoSpecialCharacters_hotWords
+{
+    NSString *string = @"This is a sample test with (http://www.link.com/directory/path/resources?timestamp=10303000&handle=dfhj&next)";
+    NSArray *results = @[
+                         @{@"hotWord": @(STTweetLink), @"range": [NSValue valueWithRange:NSMakeRange(28, 80)], @"protocol": @"http"}
+                         ];
+    
+    [self initiateTestFromSample:string results:results];
+}
+
 - (void)test_setTextAndGetHotWords_setTextWithOneLinkWithNoProtocol_hotWords
 {
     NSString *string = @"This is a sample test with www.example.com/something";
